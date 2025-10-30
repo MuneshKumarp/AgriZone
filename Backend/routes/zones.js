@@ -33,9 +33,17 @@ router.post('/', requireAuth, ensureLandowner, async (req, res) => {
 });
 
 // Get all Zones for current landowner
+// Get all Zones for current landowner. Optional search via ?q and ?limit
 router.get('/', requireAuth, ensureLandowner, async (req, res) => {
   try {
-    const zones = await Zone.find({ landownerId: req.auth.userId }).sort({ createdAt: -1 });
+    const q = (req.query.q || '').toString().trim();
+    const limit = parseInt(req.query.limit || '100', 10) || 100;
+    const filter = { landownerId: req.auth.userId };
+    if (q) {
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.name = re;
+    }
+    const zones = await Zone.find(filter).sort({ createdAt: -1 }).limit(limit);
     res.json(zones);
   } catch (e) {
     console.error('List zones error:', e);

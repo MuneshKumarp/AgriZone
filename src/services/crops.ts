@@ -23,4 +23,14 @@ export async function createCrop(input: Omit<Crop, 'id'>): Promise<Crop> {
   return { id: c._id || c.id, name: c.name, type: c.type, season: c.season };
 }
 
+export async function updateCrop(id: string, input: Partial<Omit<Crop, 'id'>>): Promise<Crop> {
+  const res = await api.put(`/crops/${id}`, input);
+  const c = res.data;
+  return { id: c._id || c.id, name: c.name, type: c.type, season: c.season };
+}
+
+export async function deleteCrop(id: string): Promise<void> {
+  await api.delete(`/crops/${id}`);
+}
+
 

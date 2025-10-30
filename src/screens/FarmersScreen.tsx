@@ -18,6 +18,12 @@ const FarmersScreen: React.FC = () => {
   const [haris, setHaris] = useState<Hari[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [crops, setCrops] = useState<Crop[]>([]);
+  const [hariQuery, setHariQuery] = useState('');
+  const [zoneQuery, setZoneQuery] = useState('');
+  const [cropQuery, setCropQuery] = useState('');
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<null | 'hari' | 'zone' | 'crop'>(null);
+  const [pickerQuery, setPickerQuery] = useState('');
   const [hariId, setHariId] = useState('');
   const [zoneId, setZoneId] = useState('');
   const [cropId, setCropId] = useState('');
@@ -160,19 +166,39 @@ const FarmersScreen: React.FC = () => {
               <View style={styles.sheetHeader}>
                 <Text style={styles.sheetTitle}>Assign Hari</Text>
               </View>
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Hari</Text>
-                <TextInput placeholder="Type Hari ID or pick from UI" value={hariId} onChangeText={setHariId} style={styles.input} placeholderTextColor="#9ca3af" />
-                {/* For now, simple input. Later replace with picker using `haris`. */}
+              {/* Hari selector (opens compact picker modal) */}
+              <View style={styles.pickerSectionRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Hari</Text>
+                  <Text style={styles.selectedText}>{hariId ? ((haris.find(h => (h.id ?? (h as any)._id) === hariId)?.firstName) ? `${haris.find(h => (h.id ?? (h as any)._id) === hariId)?.firstName} ${haris.find(h => (h.id ?? (h as any)._id) === hariId)?.lastName}` : hariId) : 'None selected'}</Text>
+                </View>
+                <TouchableOpacity style={styles.pickerOpenBtn} onPress={() => { setPickerTarget('hari'); setPickerQuery(''); setPickerVisible(true); }}>
+                  <Text style={styles.pickerOpenText}>Select</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Zone</Text>
-                <TextInput placeholder="Type Zone ID" value={zoneId} onChangeText={setZoneId} style={styles.input} placeholderTextColor="#9ca3af" />
+
+              {/* Zone selector (opens compact picker modal) */}
+              <View style={styles.pickerSectionRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Zone</Text>
+                  <Text style={styles.selectedText}>{zoneId ? (zones.find(z => (z.id ?? (z as any)._id) === zoneId)?.name || zoneId) : 'None selected'}</Text>
+                </View>
+                <TouchableOpacity style={styles.pickerOpenBtn} onPress={() => { setPickerTarget('zone'); setPickerQuery(''); setPickerVisible(true); }}>
+                  <Text style={styles.pickerOpenText}>Select</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.inputRow}>
-                <Text style={styles.inputLabel}>Crop</Text>
-                <TextInput placeholder="Type Crop ID" value={cropId} onChangeText={setCropId} style={styles.input} placeholderTextColor="#9ca3af" />
+
+              {/* Crop selector (opens compact picker modal) */}
+              <View style={styles.pickerSectionRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Crop</Text>
+                  <Text style={styles.selectedText}>{cropId ? (crops.find(c => (c.id ?? (c as any)._id) === cropId)?.name || cropId) : 'None selected'}</Text>
+                </View>
+                <TouchableOpacity style={styles.pickerOpenBtn} onPress={() => { setPickerTarget('crop'); setPickerQuery(''); setPickerVisible(true); }}>
+                  <Text style={styles.pickerOpenText}>Select</Text>
+                </TouchableOpacity>
               </View>
+
               {error && <Text style={styles.err}>{error}</Text>}
               <View style={styles.sheetActions}>
                 <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.sheetBtn, styles.sheetCancel]}>
@@ -180,6 +206,49 @@ const FarmersScreen: React.FC = () => {
                 </TouchableOpacity>
                 <TouchableOpacity onPress={onAssign} style={[styles.sheetBtn, styles.sheetSave]}>
                   <Text style={styles.sheetSaveText}>Assign</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </View>
+        </Modal>
+        {/* Compact picker modal (re-usable for Hari / Zone / Crop) */}
+        <Modal visible={pickerVisible} animationType="slide" transparent>
+          <View style={styles.sheetBackdrop}>
+            <Animated.View style={[styles.sheetCard, { marginTop: 120 }] }>
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>{pickerTarget === 'hari' ? 'Select Hari' : pickerTarget === 'zone' ? 'Select Zone' : 'Select Crop'}</Text>
+              </View>
+              <TextInput placeholder={pickerTarget === 'hari' ? 'Search Hari by name' : pickerTarget === 'zone' ? 'Search Zone' : 'Search Crop'} value={pickerQuery} onChangeText={setPickerQuery} style={styles.searchInput} placeholderTextColor="#9ca3af" />
+              <FlatList
+                data={(pickerTarget === 'hari' ? haris : pickerTarget === 'zone' ? zones : crops).filter(item => {
+                  const name = pickerTarget === 'hari' ? ((item as any).firstName ? `${(item as any).firstName} ${(item as any).lastName || ''}` : (item as any).email) : ((item as any).name || '');
+                  return name.toLowerCase().includes(pickerQuery.toLowerCase());
+                })}
+                keyExtractor={(i) => (i.id ?? (i as any)._id)}
+                style={styles.pickerList}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => {
+                  const itemId = item.id ?? (item as any)._id;
+                  const name = pickerTarget === 'hari' ? ((item as any).firstName ? `${(item as any).firstName} ${(item as any).lastName || ''}`.trim() : (item as any).email) : ((item as any).name || itemId);
+                  const selected = (pickerTarget === 'hari' && itemId === hariId) || (pickerTarget === 'zone' && itemId === zoneId) || (pickerTarget === 'crop' && itemId === cropId);
+                  return (
+                    <TouchableOpacity onPress={() => {
+                      if (pickerTarget === 'hari') setHariId(itemId);
+                      if (pickerTarget === 'zone') setZoneId(itemId);
+                      if (pickerTarget === 'crop') setCropId(itemId);
+                      setPickerVisible(false);
+                    }} style={[styles.pickerItem, selected && styles.pickerSelected]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.pickerItemText}>{name}</Text>
+                        {selected ? <Text style={{ color: '#16a34a', fontWeight: '700' }}>✓</Text> : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+                <TouchableOpacity onPress={() => setPickerVisible(false)} style={[styles.sheetBtn, styles.sheetCancel]}>
+                  <Text style={styles.sheetCancelText}>Close</Text>
                 </TouchableOpacity>
               </View>
             </Animated.View>
@@ -222,12 +291,23 @@ const styles = StyleSheet.create({
   inputLabel: { fontSize: 12, color: '#6b7280', marginBottom: 6 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#fff' },
   err: { color: '#dc2626', marginTop: 8 },
+  centerBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
+  pickerSection: { marginTop: 12 },
+  selectedText: { color: '#111827', marginBottom: 6, fontWeight: '600' },
+  searchInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#fff', marginBottom: 8 },
+  pickerList: { maxHeight: 140, borderRadius: 8, backgroundColor: '#fff' },
+  pickerItem: { paddingVertical: 8, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  pickerSelected: { backgroundColor: '#eef2ff' },
+  pickerItemText: { color: '#111827' },
   sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 14 },
   sheetBtn: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12 },
   sheetCancel: { backgroundColor: '#f3f4f6', marginRight: 8 },
   sheetCancelText: { color: '#111827', fontWeight: '700' },
   sheetSave: { backgroundColor: '#4f46e5' },
   sheetSaveText: { color: '#fff', fontWeight: '700' },
+  pickerSectionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  pickerOpenBtn: { backgroundColor: '#eef2ff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginLeft: 12 },
+  pickerOpenText: { color: '#4f46e5', fontWeight: '700' },
 });
 
 export default FarmersScreen;

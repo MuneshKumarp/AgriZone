@@ -11,10 +11,22 @@ function ensureLandowner(req, res, next) {
   next();
 }
 
-// Get all Haris (role = hari)
+// Get all Haris (role = hari). Optional query: ?q=searchText
 router.get('/', requireAuth, ensureLandowner, async (req, res) => {
   try {
-    const haris = await User.find({ userType: 'hari' }).select('_id firstName lastName email phoneNumber');
+    const q = (req.query.q || '').toString().trim();
+    const filter = { userType: 'hari' };
+    if (q) {
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { firstName: re },
+        { lastName: re },
+        { email: re },
+        { phoneNumber: re },
+      ];
+    }
+    const limit = parseInt(req.query.limit || '100', 10) || 100;
+    const haris = await User.find(filter).select('_id firstName lastName email phoneNumber').limit(limit);
     res.json(haris);
   } catch (e) {
     console.error('List haris error:', e);
